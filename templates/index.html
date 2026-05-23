@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lyric &amp; Audio Forced-Alignment Tool</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="bg-shapes">
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+  </div>
+
+  <div class="container">
+    <header>
+      <h1>Lyric &amp; Audio <span class="gradient-text">Aligner</span></h1>
+      <p class="subtitle">High-precision word-level timestamps from MP3 + lyrics</p>
+    </header>
+
+    <main>
+      <section class="card" id="upload-section">
+        <h2>Upload Files</h2>
+        <div class="upload-grid">
+          <div class="drop-zone" id="drop-audio">
+            <div class="drop-icon">&#127925;</div>
+            <p class="drop-label">Drop MP3 Audio</p>
+            <p class="drop-hint">or click to browse</p>
+            <input type="file" id="audio-input" accept=".mp3,audio/mpeg" hidden>
+            <p class="file-name" id="audio-name"></p>
+          </div>
+          <div class="drop-zone" id="drop-lyrics">
+            <div class="drop-icon">&#128221;</div>
+            <p class="drop-label">Drop Lyrics (.txt)</p>
+            <p class="drop-hint">or click to browse</p>
+            <input type="file" id="lyrics-input" accept=".txt,text/plain" hidden>
+            <p class="file-name" id="lyrics-name"></p>
+          </div>
+        </div>
+
+        <div class="model-selector">
+          <label for="model-select">Whisper Model:</label>
+          <select id="model-select">
+            <option value="tiny">Tiny (74MB · Fastest)</option>
+            <option value="base" selected>Base (142MB · Recommended)</option>
+            <option value="small">Small (466MB · Accurate)</option>
+            <option value="medium">Medium (1.5GB · Very Accurate)</option>
+            <option value="large">Large (2.9GB · Best)</option>
+          </select>
+        </div>
+
+        <button id="run-btn" class="btn-primary" disabled>Run Alignment</button>
+      </section>
+
+      <section class="card" id="progress-section" style="display:none;">
+        <h2>Progress</h2>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <p class="progress-message" id="progress-message"></p>
+        <p class="progress-status" id="progress-status"></p>
+      </section>
+
+      <section class="card" id="karaoke-section" style="display:none;">
+        <h2>Karaoke Preview</h2>
+        <audio id="audio-player" controls></audio>
+        <div class="karaoke-display" id="karaoke-display"></div>
+      </section>
+
+      <section class="card" id="editor-section" style="display:none;">
+        <h2>Timestamp Editor</h2>
+        <div class="table-wrapper">
+          <table id="editor-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Word</th>
+                <th>Start (ms)</th>
+                <th>End (ms)</th>
+                <th>Phrase</th>
+              </tr>
+            </thead>
+            <tbody id="editor-tbody"></tbody>
+          </table>
+        </div>
+        <div class="download-buttons">
+          <button id="download-json" class="btn-secondary">Download JSON</button>
+          <button id="download-txt" class="btn-secondary">Download TXT</button>
+          <button id="download-txt-b" class="btn-secondary">Download TXT B</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SincroLyrics - Alineador de Audio y Letras</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- CSS stylesheet link -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- JS controller script -->
+    <script src="/static/script.js" defer></script>
+</head>
+<body>
+    <div class="background-decor">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-area">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5v14M22 9v6M7 8v8M2 10v4"/>
+                </svg>
+                <h1>SincroLyrics</h1>
+            </div>
+            <p class="subtitle">Alinea canciones y letras a nivel de palabra con Inteligencia Artificial</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Left Panel: Configuration & Uploads -->
+            <section class="panel glass configuration-panel">
+                <h2 class="panel-title">1. Configuración e Inputs</h2>
+                
+                <form id="align-form" class="align-form">
+                    <!-- Audio Upload Box -->
+                    <div class="form-group">
+                        <label class="form-label">Archivo de Audio (MP3, WAV, M4A)</label>
+                        <div class="upload-box" id="audio-dropzone" style="position: relative;">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"/>
+                                <circle cx="6" cy="18" r="3"/>
+                                <circle cx="18" cy="16" r="3"/>
+                            </svg>
+                            <span class="upload-text">Arrastra tu audio aquí o haz clic para buscar</span>
+                            <span class="file-name" id="audio-file-name">Ningún archivo seleccionado</span>
+                            <input type="file" id="audio-input" name="audio" accept=".mp3,.wav,.m4a,.flac" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; z-index: 100;">
+                        </div>
+                    </div>
+
+                    <!-- Lyrics Text Area -->
+                    <div class="form-group">
+                        <label class="form-label">Letras de la Canción (Lyrics)</label>
+                        <div class="lyrics-input-wrapper">
+                            <textarea id="lyrics-textarea" name="lyrics_text" placeholder="Pega las letras aquí (cada verso en una línea)..."></textarea>
+                            <div class="or-separator"><span>O SUBE UN ARCHIVO TXT</span></div>
+                            <input type="file" id="lyrics-file-input" accept=".txt,.lyrics">
+                        </div>
+                    </div>
+
+                    <!-- Extra Configuration row -->
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label class="form-label">Modelo Whisper</label>
+                            <select id="model-select" name="model" class="custom-select">
+                                <option value="tiny">Tiny (~70MB) - Súper Rápido</option>
+                                <option value="base" selected>Base (~140MB) - Recomendado</option>
+                                <option value="small">Small (~460MB) - Mayor precisión</option>
+                                <option value="medium">Medium (~1.5GB) - Precisión Máxima</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">Idioma (Opcional)</label>
+                            <input type="text" id="language-input" name="language" class="custom-input" placeholder="Autodetectar (ej. es, en)">
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button type="submit" id="submit-btn" class="action-btn">
+                        <span>Iniciar Alineación IA</span>
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                    </button>
+                </form>
+
+                <!-- Processing / Loading Overlay -->
+                <div class="loader-overlay" id="loader-overlay">
+                    <div class="loader-content">
+                        <div class="spinner"></div>
+                        <h3 class="loader-status" id="loader-status">Iniciando...</h3>
+                        <p class="loader-msg" id="loader-msg">Espera un momento...</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-percent" id="progress-percent">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Results, Karaoke & Editor -->
+            <section class="panel glass results-panel" id="results-panel">
+                <div class="empty-state" id="empty-state">
+                    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8v4l3 3"/>
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                    <h3>Esperando alineación</h3>
+                    <p>Sube una canción y su letra en el panel de la izquierda para generar los timestamps.</p>
+                </div>
+
+                <div class="results-content hidden" id="results-content">
+                    <div class="results-header">
+                        <h2 class="panel-title">2. Visualización y Edición</h2>
+                        <div class="tab-controls">
+                            <button class="tab-btn active" data-tab="karaoke">Modo Karaoke</button>
+                            <button class="tab-btn" data-tab="table">Editor de Timestamps</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 1: Karaoke Preview -->
+                    <div class="tab-pane active" id="tab-karaoke">
+                        <div class="player-wrapper">
+                            <audio id="audio-player" controls class="custom-audio"></audio>
+                        </div>
+                        <div class="karaoke-container" id="karaoke-container">
+                            <!-- Aligned lyrics will render here -->
+                            <div class="karaoke-scroll" id="karaoke-scroll"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Timestamp Editor Table -->
+                    <div class="tab-pane" id="tab-table">
+                        <p class="editor-instructions">Haz doble clic en los milisegundos de inicio/término para editar. Presiona Enter para guardar.</p>
+                        <div class="table-container">
+                            <table class="editor-table" id="editor-table">
+                                <thead>
+                                    <tr>
+                                        <th>Palabra</th>
+                                        <th>Inicio (ms)</th>
+                                        <th>Fin (ms)</th>
+                                        <th>Frase (Línea)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="editor-table-body">
+                                    <!-- Table rows will render here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Download Options -->
+                    <div class="download-section">
+                        <h3 class="section-subtitle">3. Descargar Resultados</h3>
+                        <div class="download-grid">
+                            <button id="download-json-btn" class="download-btn">
+                                <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                <div class="download-btn-text">
+                                    <span class="btn-title">Descargar JSON</span>
+                                    <span class="btn-sub">Array de Objetos</span>
+                                </div>
+                            </button>
+
+                            <button id="download-txt-btn" class="download-btn text-btn">
+                                <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                <div class="download-btn-text">
+                                    <span class="btn-title">Descargar Texto (.txt)</span>
+                                    <span class="btn-sub">Formato Comas (CSV)</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
