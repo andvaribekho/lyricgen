@@ -9,6 +9,8 @@
   const lyricsInput = document.getElementById("lyrics-input");
   const dropAudio = document.getElementById("drop-audio");
   const dropLyrics = document.getElementById("drop-lyrics");
+  const writeLyricsZone = document.getElementById("write-lyrics-zone");
+  const lyricsText = document.getElementById("lyrics-text");
   const audioName = document.getElementById("audio-name");
   const lyricsName = document.getElementById("lyrics-name");
   const runBtn = document.getElementById("run-btn");
@@ -22,6 +24,7 @@
   const currentTimeEl = document.getElementById("current-time");
   const audioPlayer = document.getElementById("audio-player");
   const editorSection = document.getElementById("editor-section");
+  const editorTableWrapper = document.getElementById("editor-table-wrapper");
   const editorTbody = document.getElementById("editor-tbody");
   const downloadJson = document.getElementById("download-json");
   const downloadTxt = document.getElementById("download-txt");
@@ -74,20 +77,28 @@
 
   setupDropZone(dropAudio, audioInput, audioName, "audio");
   setupDropZone(dropLyrics, lyricsInput, lyricsName, "lyrics");
+  lyricsText.addEventListener("input", () => {
+    writeLyricsZone.classList.toggle("has-text", lyricsText.value.trim().length > 0);
+    checkReady();
+  });
 
   function checkReady() {
-    runBtn.disabled = !(audioFile && lyricsFile);
+    runBtn.disabled = !(audioFile && (lyricsFile || lyricsText.value.trim().length > 0));
   }
 
   runBtn.addEventListener("click", async () => {
-    if (!audioFile || !lyricsFile) return;
+    if (!audioFile || (!lyricsFile && lyricsText.value.trim().length === 0)) return;
 
     runBtn.disabled = true;
     runBtn.textContent = "Uploading...";
 
     const formData = new FormData();
     formData.append("audio", audioFile);
-    formData.append("lyrics", lyricsFile);
+    if (lyricsText.value.trim().length > 0) {
+      formData.append("lyrics_text", lyricsText.value.trim());
+    } else if (lyricsFile) {
+      formData.append("lyrics", lyricsFile);
+    }
     formData.append("model", modelSelect.value);
 
     try {
@@ -164,19 +175,24 @@
   }
 
   function hydratePhraseGroups(words) {
-    const phraseToGroup = new Map();
-    let nextGroup = 1;
+    let currentGroup = 0;
+    let previousPhrase = null;
 
-    return words.map((word) => {
-      if (!phraseToGroup.has(word.phrase)) {
-        phraseToGroup.set(word.phrase, nextGroup);
-        nextGroup += 1;
+    const hydrated = words.map((word) => {
+      if (Number.isInteger(Number(word.phrase_group)) && Number(word.phrase_group) > 0) {
+        currentGroup = Number(word.phrase_group);
+      } else if (word.phrase !== previousPhrase) {
+        currentGroup += 1;
       }
+      previousPhrase = word.phrase;
+
       return {
         ...word,
-        phrase_group: phraseToGroup.get(word.phrase),
+        phrase_group: currentGroup || 1,
       };
     });
+    normalizePhraseGroups(hydrated);
+    return hydrated;
   }
 
   function getPhrases() {
@@ -201,6 +217,7 @@
   }
 
   let phraseEls = [];
+  let activeEditorIndex = -1;
 
   function renderKaraoke() {
     const phrases = getPhrases();
@@ -234,6 +251,7 @@
   audioPlayer.addEventListener("timeupdate", () => {
     const currentMs = audioPlayer.currentTime * 1000;
     currentTimeEl.textContent = Math.round(currentMs) + " ms";
+    updateEditorHighlight(currentMs);
     let activePhrase = null;
     let activeIdx = -1;
 
@@ -278,6 +296,42 @@
     }
   });
 
+  function updateEditorHighlight(currentMs) {
+    let nextIndex = -1;
+    for (let i = 0; i < alignedData.length; i++) {
+      const start = Number(alignedData[i].start_ms);
+      const end = Number(alignedData[i].end_ms);
+      if (currentMs >= start && currentMs <= end) {
+        nextIndex = i;
+        break;
+      }
+    }
+
+    if (nextIndex === activeEditorIndex) return;
+
+    const previousRow = editorTbody.querySelector(".word-row.editor-active");
+    if (previousRow) previousRow.classList.remove("editor-active");
+
+    activeEditorIndex = nextIndex;
+    if (nextIndex < 0) return;
+
+    const row = editorTbody.querySelector(`.word-row[data-index="${nextIndex}"]`);
+    if (!row) return;
+
+    row.classList.add("editor-active");
+    centerEditorOnRow(row);
+  }
+
+  function centerEditorOnRow(row) {
+    if (!editorTableWrapper) return;
+
+    const targetTop = row.offsetTop - (editorTableWrapper.clientHeight / 2) + (row.offsetHeight / 2);
+    editorTableWrapper.scrollTo({
+      top: Math.max(0, targetTop),
+      behavior: "smooth",
+    });
+  }
+
   function getPhraseGroups() {
     const map = {};
     const order = [];
@@ -293,6 +347,23 @@
 
   function getGroupId(word) {
     return Number(word.phrase_group) || 1;
+  }
+
+  function normalizePhraseGroups(words = alignedData) {
+    let currentGroup = 1;
+
+    for (let i = 0; i < words.length; i++) {
+      let group = parseInt(words[i].phrase_group, 10);
+      if (isNaN(group) || group < 1) {
+        group = currentGroup;
+      }
+      if (i > 0 && group < currentGroup) {
+        group = currentGroup;
+      }
+
+      words[i].phrase_group = group;
+      currentGroup = group;
+    }
   }
 
   function renderEditor() {
@@ -373,12 +444,17 @@
         startEdit(td);
       });
     });
+
+    activeEditorIndex = -1;
+    updateEditorHighlight(audioPlayer.currentTime * 1000);
   }
 
   function shiftGroupsDown(fromIndex) {
     for (let i = fromIndex; i < alignedData.length; i++) {
       alignedData[i].phrase_group = getGroupId(alignedData[i]) + 1;
     }
+
+    normalizePhraseGroups();
 
     renderKaraoke();
     renderEditor();
@@ -456,6 +532,7 @@
 
     const insertIdx = afterIndex + 1;
     alignedData.splice(insertIdx, 0, newWord);
+    normalizePhraseGroups();
     renderKaraoke();
     renderEditor();
 
@@ -495,6 +572,7 @@
         const newGroupId = parseInt(raw, 10);
         if (!isNaN(newGroupId) && newGroupId > 0) {
           alignedData[index].phrase_group = newGroupId;
+          normalizePhraseGroups();
         }
       } else if (field === "word") {
         alignedData[index][field] = raw || currentValue;
@@ -518,6 +596,7 @@
   }
 
   downloadJson.addEventListener("click", () => {
+    normalizePhraseGroups();
     const data = alignedData.map((w) => ({
       start_ms: w.start_ms,
       end_ms: w.end_ms,
@@ -533,6 +612,7 @@
   });
 
   downloadTxt.addEventListener("click", () => {
+    normalizePhraseGroups();
     const lines = alignedData.map((w) => {
       return `[${w.start_ms}ms -> ${w.end_ms}ms] ${w.word} (group: @${getGroupId(w)})`;
     });
@@ -544,6 +624,7 @@
   });
 
   downloadTxtB.addEventListener("click", () => {
+    normalizePhraseGroups();
     const lines = ["# format: words-guided"];
     for (const w of alignedData) {
       lines.push(`${w.start_ms} ${w.end_ms} @${getGroupId(w)} ${w.word}`);

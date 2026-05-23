@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, UploadFile, Request
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -57,7 +57,8 @@ async def stream_progress(job_id: str):
 @app.post("/api/upload")
 async def upload_files(
     audio: UploadFile = File(...),
-    lyrics: UploadFile = File(...),
+    lyrics: Optional[UploadFile] = File(None),
+    lyrics_text: str = Form(""),
     model: str = Form("base"),
 ):
     job_id = str(uuid.uuid4())
@@ -65,15 +66,21 @@ async def upload_files(
     job_dir.mkdir(exist_ok=True)
 
     audio_path = job_dir / audio.filename
-    lyrics_path = job_dir / lyrics.filename
+    lyrics_path = job_dir / "lyrics.txt"
 
     audio_content = await audio.read()
     with open(audio_path, "wb") as f:
         f.write(audio_content)
 
-    lyrics_content = await lyrics.read()
-    with open(lyrics_path, "wb") as f:
-        f.write(lyrics_content)
+    if lyrics_text.strip():
+        with open(lyrics_path, "w", encoding="utf-8") as f:
+            f.write(lyrics_text.strip())
+    elif lyrics is not None:
+        lyrics_content = await lyrics.read()
+        with open(lyrics_path, "wb") as f:
+            f.write(lyrics_content)
+    else:
+        raise HTTPException(status_code=400, detail="Lyrics file or pasted lyrics text is required")
 
     progress_store[job_id] = {"status": "uploaded", "progress": 0, "message": "Files uploaded"}
 
@@ -127,23 +134,13 @@ def run_alignment(job_id: str, audio_path: str, lyrics_path: str, model_size: st
             for w in output:
                 f.write(
                     f"[{w['start_ms']}ms -> {w['end_ms']}ms] {w['word']} "
-                    f"(phrase: \"{w['phrase']}\")\n"
+                    f"(group: @{w['phrase_group']})\n"
                 )
-
-        phrase_map = {}
-        next_id = 1
-        phrase_order = []
-        for w in output:
-            p = w["phrase"]
-            if p not in phrase_map:
-                phrase_map[p] = next_id
-                phrase_order.append(p)
-                next_id += 1
 
         with open(out_txt_b, "w", encoding="utf-8") as f:
             f.write("# format: words-guided\n")
             for w in output:
-                group_id = phrase_map[w["phrase"]]
+                group_id = w["phrase_group"]
                 f.write(f"{w['start_ms']} {w['end_ms']} @{group_id} {w['word']}\n")
 
         progress_store[job_id] = {

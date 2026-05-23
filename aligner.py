@@ -15,6 +15,7 @@ class AlignedWord:
     end_ms: int
     word: str
     phrase: str
+    phrase_group: int
 
 
 class LyricAligner:
@@ -43,16 +44,19 @@ class LyricAligner:
     def parse_lyrics(self, lyrics_text: str) -> List[dict]:
         lines = lyrics_text.strip().split("\n")
         entries = []
+        phrase_group = 0
         for line in lines:
             phrase = line.strip()
             if not phrase:
                 continue
+            phrase_group += 1
             norm_phrase = self.normalize_text(phrase)
             words = norm_phrase.split()
             for word in words:
                 entries.append({
                     "word": word,
                     "phrase": phrase,
+                    "phrase_group": phrase_group,
                 })
         return entries
 
@@ -137,6 +141,7 @@ class LyricAligner:
                     "end_ms": int(round(ww["end"] * 1000)),
                     "word": entry["word"],
                     "phrase": entry["phrase"],
+                    "phrase_group": entry["phrase_group"],
                 })
             else:
                 aligned.append({
@@ -144,6 +149,7 @@ class LyricAligner:
                     "end_ms": 0,
                     "word": entry["word"],
                     "phrase": entry["phrase"],
+                    "phrase_group": entry["phrase_group"],
                 })
 
         aligned = self._interpolate_gaps(aligned)
@@ -207,6 +213,7 @@ class LyricAligner:
                 "end_ms": w["end_ms"],
                 "word": w["word"],
                 "phrase": w["phrase"],
+                "phrase_group": w["phrase_group"],
             }
             for w in aligned
         ]

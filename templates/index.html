@@ -37,6 +37,9 @@
             <input type="file" id="lyrics-input" accept=".txt,text/plain" hidden>
             <p class="file-name" id="lyrics-name"></p>
           </div>
+          <div class="write-lyrics-zone" id="write-lyrics-zone">
+            <textarea id="lyrics-text" placeholder="Pega aqui tus lyrics...&#10;Una frase por linea"></textarea>
+          </div>
         </div>
 
         <div class="model-selector">
@@ -71,7 +74,7 @@
 
       <section class="card" id="editor-section" style="display:none;">
         <h2>Timestamp Editor</h2>
-        <div class="table-wrapper">
+        <div class="table-wrapper" id="editor-table-wrapper">
           <table id="editor-table">
             <thead>
               <tr>
