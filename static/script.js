@@ -22,13 +22,17 @@
   const karaokeSection = document.getElementById("karaoke-section");
   const karaokeDisplay = document.getElementById("karaoke-display");
   const currentTimeEl = document.getElementById("current-time");
+  const clipboardMessage = document.getElementById("clipboard-message");
   const audioPlayer = document.getElementById("audio-player");
   const editorSection = document.getElementById("editor-section");
   const editorTableWrapper = document.getElementById("editor-table-wrapper");
   const editorTbody = document.getElementById("editor-tbody");
   const downloadJson = document.getElementById("download-json");
-  const downloadTxt = document.getElementById("download-txt");
   const downloadTxtB = document.getElementById("download-txt-b");
+  const existingAudioInput = document.getElementById("existing-audio-input");
+  const existingTxtBInput = document.getElementById("existing-txt-b-input");
+  const loadExistingBtn = document.getElementById("load-existing-btn");
+  const loadExistingStatus = document.getElementById("load-existing-status");
 
   function setupDropZone(dropZone, input, nameEl, acceptType) {
     dropZone.addEventListener("click", () => input.click());
@@ -82,8 +86,18 @@
     checkReady();
   });
 
+  existingAudioInput.addEventListener("change", () => checkExistingReady(true));
+  existingTxtBInput.addEventListener("change", () => checkExistingReady(true));
+  loadExistingBtn.addEventListener("click", loadExistingAlignment);
+  currentTimeEl.addEventListener("click", copyCurrentTimeToClipboard);
+
   function checkReady() {
     runBtn.disabled = !(audioFile && (lyricsFile || lyricsText.value.trim().length > 0));
+  }
+
+  function checkExistingReady(clearStatus = false) {
+    loadExistingBtn.disabled = !(existingAudioInput.files.length && existingTxtBInput.files.length);
+    if (clearStatus) loadExistingStatus.textContent = "";
   }
 
   runBtn.addEventListener("click", async () => {
@@ -172,6 +186,127 @@
         audioPlayer.play();
       });
     }
+  }
+
+  async function copyCurrentTimeToClipboard() {
+    const ms = String(Math.round(audioPlayer.currentTime * 1000));
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(ms);
+      } else {
+        const temp = document.createElement("textarea");
+        temp.value = ms;
+        temp.style.position = "fixed";
+        temp.style.opacity = "0";
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        temp.remove();
+      }
+      clipboardMessage.classList.remove("show", "fade-out");
+      void clipboardMessage.offsetWidth;
+      clipboardMessage.classList.add("show");
+      setTimeout(() => {
+        clipboardMessage.classList.add("fade-out");
+      }, 1500);
+      setTimeout(() => {
+        clipboardMessage.classList.remove("show", "fade-out");
+      }, 1900);
+    } catch (err) {
+      currentTimeEl.textContent = "copy failed";
+    }
+  }
+
+  async function loadExistingAlignment() {
+    const mp3 = existingAudioInput.files[0];
+    const txtB = existingTxtBInput.files[0];
+    if (!mp3 || !txtB) {
+      loadExistingStatus.textContent = "Select both MP3 and TXT B files.";
+      return;
+    }
+
+    try {
+      loadExistingBtn.disabled = true;
+      loadExistingStatus.textContent = "Loading existing alignment...";
+
+      const text = await readTextFile(txtB);
+      const parsed = parseTxtB(text);
+      if (parsed.length === 0) {
+        throw new Error("TXT B has no valid word rows");
+      }
+
+      audioFile = mp3;
+      lyricsFile = null;
+      lyricsText.value = "";
+      jobId = `edited_${Date.now()}`;
+      alignedData = parsed;
+
+      audioPlayer.src = URL.createObjectURL(mp3);
+      audioPlayer.currentTime = 0;
+      currentTimeEl.textContent = "0 ms";
+      karaokeSection.style.display = "block";
+      editorSection.style.display = "block";
+      renderKaraoke();
+      renderEditor();
+
+      loadExistingStatus.textContent = `Loaded ${parsed.length} words from TXT B.`;
+    } catch (err) {
+      loadExistingStatus.textContent = `Error: ${friendlyFileError(err)}`;
+    } finally {
+      checkExistingReady();
+    }
+  }
+
+  function readTextFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error || new Error("Could not read file"));
+      reader.readAsText(file, "utf-8");
+    });
+  }
+
+  function friendlyFileError(err) {
+    const message = err && err.message ? err.message : String(err);
+    if (/requested file|directory could not be found|notfound/i.test(message)) {
+      return "The browser lost access to one of the selected files. Please re-select the MP3 and TXT B, then try again.";
+    }
+    return message;
+  }
+
+  function parseTxtB(text) {
+    const parsed = [];
+    const lines = text.split(/\r?\n/);
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      const match = trimmed.match(/^(\d+)\s+(\d+)\s+@(\d+)\s+(.+)$/);
+      if (!match) continue;
+
+      parsed.push({
+        start_ms: parseInt(match[1], 10),
+        end_ms: parseInt(match[2], 10),
+        phrase_group: parseInt(match[3], 10),
+        word: match[4].trim(),
+        phrase: "",
+      });
+    }
+
+    const phraseByGroup = new Map();
+    for (const row of parsed) {
+      const group = row.phrase_group;
+      if (!phraseByGroup.has(group)) phraseByGroup.set(group, []);
+      phraseByGroup.get(group).push(row.word);
+    }
+
+    for (const row of parsed) {
+      row.phrase = phraseByGroup.get(row.phrase_group).join(" ");
+    }
+
+    normalizePhraseGroups(parsed);
+    return parsed;
   }
 
   function hydratePhraseGroups(words) {
@@ -559,7 +694,10 @@
     const input = document.createElement("input");
     input.type = isText ? "text" : "number";
     input.value = currentValue;
-    if (!isText) input.min = "0";
+    if (!isText) {
+      input.min = "0";
+      input.step = "1";
+    }
 
     td.textContent = "";
     td.appendChild(input);
@@ -588,6 +726,13 @@
 
     input.addEventListener("blur", finish);
     input.addEventListener("keydown", (e) => {
+      if (!isText && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+        e.preventDefault();
+        const current = parseInt(input.value || "0", 10) || 0;
+        const delta = e.key === "ArrowUp" ? 10 : -10;
+        input.value = Math.max(0, current + delta);
+        return;
+      }
       if (e.key === "Enter") finish();
       if (e.key === "Escape") {
         td.textContent = originalText;
@@ -608,18 +753,6 @@
       JSON.stringify(data, null, 2),
       `lyric_alignment_${jobId || "edited"}.json`,
       "application/json"
-    );
-  });
-
-  downloadTxt.addEventListener("click", () => {
-    normalizePhraseGroups();
-    const lines = alignedData.map((w) => {
-      return `[${w.start_ms}ms -> ${w.end_ms}ms] ${w.word} (group: @${getGroupId(w)})`;
-    });
-    downloadTextFile(
-      lines.join("\n") + "\n",
-      `lyric_alignment_${jobId || "edited"}.txt`,
-      "text/plain"
     );
   });
 

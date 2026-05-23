@@ -46,9 +46,9 @@
           <label for="model-select">Whisper Model:</label>
           <select id="model-select">
             <option value="tiny">Tiny (74MB · Fastest)</option>
-            <option value="base" selected>Base (142MB · Recommended)</option>
+            <option value="base">Base (142MB · Fast)</option>
             <option value="small">Small (466MB · Accurate)</option>
-            <option value="medium">Medium (1.5GB · Very Accurate)</option>
+            <option value="medium" selected>Medium (1.5GB · Recommended)</option>
             <option value="large">Large (2.9GB · Best)</option>
           </select>
         </div>
@@ -70,10 +70,11 @@
         <audio id="audio-player" controls></audio>
         <div class="karaoke-display" id="karaoke-display"></div>
         <div class="current-time" id="current-time">0 ms</div>
+        <div class="clipboard-message" id="clipboard-message">clopied to clipboard</div>
       </section>
 
       <section class="card" id="editor-section" style="display:none;">
-        <h2>Timestamp Editor</h2>
+        <h2>Timestamp Editor <span class="editor-hint">Hint: Spacebar to play/pause, ← / → arrows to move 500ms</span></h2>
         <div class="table-wrapper" id="editor-table-wrapper">
           <table id="editor-table">
             <thead>
@@ -92,9 +93,26 @@
         </div>
         <div class="download-buttons">
           <button id="download-json" class="btn-secondary">Download JSON</button>
-          <button id="download-txt" class="btn-secondary">Download TXT</button>
-          <button id="download-txt-b" class="btn-secondary">Download TXT B</button>
+          <button id="download-txt-b" class="btn-secondary">Download TXT</button>
         </div>
+
+      </section>
+
+      <section class="card load-existing">
+        <h3>Edit Existing lyrics in JSON or TXT format</h3>
+        <p>Load an MP3 and an existing lyrics file to edit previous timestamps.</p>
+        <div class="load-existing-grid">
+          <label>
+            <span>MP3</span>
+            <input type="file" id="existing-audio-input" accept=".mp3,audio/mpeg">
+          </label>
+          <label>
+            <span>TXT B</span>
+            <input type="file" id="existing-txt-b-input" accept=".txt,text/plain">
+          </label>
+          <button id="load-existing-btn" class="btn-secondary" disabled>Load Lyrics</button>
+        </div>
+        <p class="load-existing-status" id="load-existing-status"></p>
       </section>
     </main>
   </div>

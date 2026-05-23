@@ -130,6 +130,14 @@ header h1 {
   color: #fff;
 }
 
+.editor-hint {
+  margin-left: 10px;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.52);
+  white-space: nowrap;
+}
+
 .upload-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -349,6 +357,36 @@ header h1 {
   font-variant-numeric: tabular-nums;
   margin-top: 12px;
   font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s, text-shadow 0.2s;
+}
+
+.current-time:hover,
+.current-time.copied {
+  color: #4ecdc4;
+  text-shadow: 0 0 10px rgba(78, 205, 196, 0.35);
+}
+
+.clipboard-message {
+  text-align: center;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #4ecdc4;
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.clipboard-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.clipboard-message.fade-out {
+  opacity: 0;
+  transform: translateY(-3px);
 }
 
 .karaoke-display {
@@ -517,6 +555,62 @@ header h1 {
   justify-content: flex-end;
 }
 
+.load-existing {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card.load-existing {
+  margin-top: 0;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.load-existing h3 {
+  color: #fff;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.load-existing p {
+  color: #888;
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+}
+
+.load-existing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.load-existing-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #aaa;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.load-existing-grid input[type="file"] {
+  width: 100%;
+  color: #ccc;
+  font-size: 0.78rem;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.load-existing-status {
+  margin-top: 10px !important;
+  margin-bottom: 0 !important;
+  color: #4ecdc4 !important;
+}
+
 .shift-grp-btn {
   background: #ec4899;
   border: none;
@@ -630,5 +724,9 @@ header h1 {
 
   .download-buttons {
     flex-direction: column;
+  }
+
+  .load-existing-grid {
+    grid-template-columns: 1fr;
   }
 }
