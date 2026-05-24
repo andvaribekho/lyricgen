@@ -548,9 +548,25 @@
         showDeleteConfirm(i, e.currentTarget);
       });
 
+      tr.querySelectorAll('td[data-field="start_ms"], td[data-field="end_ms"]').forEach((td) => {
+        td.addEventListener(
+          "click",
+          (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (!e.target.closest("input")) {
+              startEdit(td);
+            }
+          },
+          true
+        );
+      });
+
       let clickTimer = null;
       tr.addEventListener("click", (e) => {
         if (e.target.closest("input") || e.target.closest("button")) return;
+        const editableCell = e.target.closest("td.editable");
+        if (editableCell && ["start_ms", "end_ms"].includes(editableCell.dataset.field)) return;
         if (clickTimer) {
           clearTimeout(clickTimer);
           clickTimer = null;
@@ -751,7 +767,7 @@
     }));
     downloadTextFile(
       JSON.stringify(data, null, 2),
-      `lyric_alignment_${jobId || "edited"}.json`,
+      getLyricsDownloadName("json"),
       "application/json"
     );
   });
@@ -764,10 +780,16 @@
     }
     downloadTextFile(
       lines.join("\n") + "\n",
-      `lyric_alignment_${jobId || "edited"}_b.txt`,
+      getLyricsDownloadName("txt"),
       "text/plain"
     );
   });
+
+  function getLyricsDownloadName(extension) {
+    const sourceName = audioFile && audioFile.name ? audioFile.name : "lyrics";
+    const base = sourceName.replace(/\.[^/.]+$/, "");
+    return `${base}-lyrics.${extension}`;
+  }
 
   function downloadTextFile(content, filename, type) {
     const blob = new Blob([content], { type });
